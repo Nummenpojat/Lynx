@@ -3,6 +3,7 @@ import { createPinia } from "pinia";
 import { plugin, defaultConfig } from "@formkit/vue";
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import vue3GoogleLogin from "vue3-google-login";
 import {
     faList,
     faGear,
@@ -76,6 +77,9 @@ library.add(
 );
 
 const app = createApp(App);
+app.use(vue3GoogleLogin, {
+    clientId: "623902311841-fqvg6siivr6grl3dkuttdsdskr4ub8hi.apps.googleusercontent.com",
+});
 app.use(router);
 app.use(pinia);
 app.component("FontAwesomeIcon", FontAwesomeIcon);

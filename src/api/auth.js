@@ -1,4 +1,5 @@
 const express = require("express");
+const axios = require("axios");
 
 const router = express.Router();
 const requireFields = require("./middleware/requireFields");
@@ -13,6 +14,7 @@ const getAccountById = require("../db/modules/account/get/byID");
 
 const {
     login,
+    oauth,
     update: {
         email: updateEmail, password: updatePassword, username: updateUsername, automaticLogin,
     },
@@ -32,6 +34,68 @@ const randomString = (length) => {
 
     return [...Array(length)].map(() => characters.at(Math.floor(Math.random() * characters.length))).join("");
 };
+
+router.post("/oauth", requireFields(["code"]), async (req, res) => {
+    try {
+        const { code } = req.body;
+        const response = await axios.post(
+            "https://oauth2.googleapis.com/token",
+            {
+                code,
+                client_id: process.env.GOOGLE_CLIENT_ID,
+                client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                redirect_uri: "postmessage",
+                grant_type: "authorization_code",
+            },
+        );
+        const accessToken = response.data.access_token;
+
+        // Fetch user details using the access token
+        const userResponse = await axios.get(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            {
+                headers: {
+                    Authorization: `Bearer ${accessToken}`,
+                },
+            },
+        );
+        const userDetails = userResponse.data;
+
+        if (!userDetails.email || !userDetails.email_verified) {
+            return res.status(400).json({
+                success: false,
+                message: "Unable to sign in with Google",
+            });
+        }
+
+        const [data, error] = await oauth({
+            email: userDetails.email,
+            userid: userDetails.sub,
+            name: userDetails.name,
+        });
+
+        if (error) {
+            return res.status(error.code).json({
+                success: false,
+                message: error.message,
+            });
+        }
+
+        // Process user details and perform necessary actions
+
+        res.status(200).json({ message: "Authentication successful" });
+
+        res.setHeader("Set-Cookie", data.serialized);
+
+        return res.redirect("/dash/");
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal Server Error when logging in",
+        });
+    }
+});
 
 router.post("/login", requireFields(["username", "password"]), async (req, res) => {
     try {
