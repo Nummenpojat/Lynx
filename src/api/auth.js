@@ -95,13 +95,12 @@ router.post("/oauth", async (req, res) => {
             });
         }
 
-        // Process user details and perform necessary actions
-
-        res.status(200).json({ message: "Authentication successful" });
-
         res.setHeader("Set-Cookie", data.serialized);
 
-        return res.redirect("/dash/");
+        return res.status(200).json({
+            success: true,
+            message: "Successfully logged in!",
+        });
     } catch (error) {
         console.log(error);
         return res.status(500).json({
