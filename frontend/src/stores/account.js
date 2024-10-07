@@ -36,10 +36,10 @@ export const useAccountStore = defineStore("account", {
 
             return data;
         },
-        async oauth(code) {
+        async oauth(code, credential) {
             const response = await fetch("/api/auth/oauth", {
                 method: "POST",
-                body: JSON.stringify({ code }),
+                body: JSON.stringify({ code, credential }),
                 headers: {
                     "Content-Type": "application/json",
                 },

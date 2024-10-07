@@ -1,5 +1,6 @@
 const express = require("express");
 const axios = require("axios");
+const { OAuth2Client } = require("google-auth-library");
 
 const router = express.Router();
 const requireFields = require("./middleware/requireFields");
@@ -11,6 +12,8 @@ const createSecret = require("../db/modules/secret/create");
 const totp = require("../db/modules/totp");
 const returnAccount = require("../modules/returnAccount");
 const getAccountById = require("../db/modules/account/get/byID");
+
+const oauthGClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const {
     login,
@@ -35,31 +38,42 @@ const randomString = (length) => {
     return [...Array(length)].map(() => characters.at(Math.floor(Math.random() * characters.length))).join("");
 };
 
-router.post("/oauth", requireFields(["code"]), async (req, res) => {
+router.post("/oauth", async (req, res) => {
     try {
-        const { code } = req.body;
-        const response = await axios.post(
-            "https://oauth2.googleapis.com/token",
-            {
-                code,
-                client_id: process.env.GOOGLE_CLIENT_ID,
-                client_secret: process.env.GOOGLE_CLIENT_SECRET,
-                redirect_uri: "postmessage",
-                grant_type: "authorization_code",
-            },
-        );
-        const accessToken = response.data.access_token;
+        const { code, credential } = req.body;
 
-        // Fetch user details using the access token
-        const userResponse = await axios.get(
-            "https://www.googleapis.com/oauth2/v3/userinfo",
-            {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
+        let userDetails;
+
+        if (code) {
+            const response = await axios.post(
+                "https://oauth2.googleapis.com/token",
+                {
+                    code,
+                    client_id: process.env.GOOGLE_CLIENT_ID,
+                    client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                    redirect_uri: "postmessage",
+                    grant_type: "authorization_code",
                 },
-            },
-        );
-        const userDetails = userResponse.data;
+            );
+            const accessToken = response.data.access_token;
+            // Fetch user details using the access token
+            const userResponse = await axios.get(
+                "https://www.googleapis.com/oauth2/v3/userinfo",
+                {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`,
+                    },
+                },
+            );
+            userDetails = userResponse.data;
+        }
+
+        if (credential) {
+            const ticket = await oauthGClient.verifyIdToken({
+                idToken: credential,
+            });
+            userDetails = ticket.getPayload();
+        }
 
         if (!userDetails.email || !userDetails.email_verified) {
             return res.status(400).json({

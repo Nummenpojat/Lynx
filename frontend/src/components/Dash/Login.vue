@@ -32,7 +32,9 @@
             <a v-if="requires2FA" class="lostTOTP" @click="lostTOTP">Lost your authenticator?</a>
             <p>{{ response }}</p>
         </FormKit>
-        <GoogleLogin :callback="googleCallback"/>
+        <center>
+            <GoogleLogin :callback="googleCallback"/>
+        </center>
         <a @click="gotoRegister"> Register </a>
     </div>
 </template>
@@ -67,12 +69,12 @@ export default {
     methods: {
         async googleCallback(resp) {
             this.response = null;
-            if (!resp.code) {
+            if (!resp.code && !resp.credential) {
                 this.response = "Google Sign-In failed!";
                 return;
             }
             const account = useAccountStore();
-            const data = await account.oauth(resp.code);
+            const data = await account.oauth(resp.code, resp.credential);
             if (data.success) {
                 this.about.track("Logged In");
                 this.response = "Logged in!";
